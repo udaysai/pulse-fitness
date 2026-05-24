@@ -1,0 +1,19 @@
+node_modules/
+.next/
+.vercel/
+.env
+.env.local
+.env*.local
+*.log
+.DS_Store
+.idea/
+.vscode/
+*.tsbuildinfo
+.turbo/
+coverage/
+dist/
+build/
+
+# Supabase local
+supabase/.branches
+supabase/.temp
