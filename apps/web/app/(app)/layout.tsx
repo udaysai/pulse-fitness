@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { Activity, Apple, Heart, MessageCircle, Settings } from "lucide-react";
+import { Activity, Apple, CalendarDays, MessageCircle, Settings } from "lucide-react";
 
 const NAV = [
   { href: "/dashboard", label: "Today", icon: Activity },
-  { href: "/workouts", label: "Workouts", icon: Heart },
+  { href: "/plan", label: "Plan", icon: CalendarDays },
   { href: "/nutrition", label: "Nutrition", icon: Apple },
   { href: "/chat", label: "Chat", icon: MessageCircle },
   { href: "/settings", label: "Settings", icon: Settings },

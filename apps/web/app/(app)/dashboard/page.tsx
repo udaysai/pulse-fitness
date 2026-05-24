@@ -1,15 +1,14 @@
 import { redirect } from "next/navigation";
-import { Upload, Sparkles } from "lucide-react";
+import { Upload, Sparkles, CalendarDays, Dumbbell } from "lucide-react";
 import Link from "next/link";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { RingProgress } from "@/components/ui/RingProgress";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
-import { ExerciseCard } from "@/components/ui/ExerciseCard";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { DayCard, type DailyPlan } from "@/components/plan/DayCard";
 import { ACCENT_HEX } from "@/lib/design/accents";
 import { getCurrentUserAndProfile, isProfileComplete } from "@/lib/queries/profile";
 import { getRecentMetrics, trend } from "@/lib/queries/metrics";
-import { getTodayPlan } from "@/lib/queries/plans";
 import { isSupabaseConfigured } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 
@@ -25,29 +24,16 @@ export default async function DashboardPage() {
 
   const metrics = await getRecentMetrics(14);
   const today = metrics.find((m) => m.date === new Date().toISOString().slice(0, 10));
-  const todayPlan = await getTodayPlan();
 
-  // Resolve exercise names + GIFs for the plan
-  let planExercises: Array<{ name: string; primaryMuscle: string; sets: number; reps: string; demoGifUrl?: string }> = [];
-  if (todayPlan) {
-    const supabase = await createClient();
-    const ids = todayPlan.plan.exercises.map((e) => e.exercise_id);
-    const { data: rows } = await supabase
-      .from("exercises")
-      .select("id, name, primary_muscle, demo_gif_url")
-      .in("id", ids);
-    const byId = new Map((rows ?? []).map((r) => [r.id, r]));
-    planExercises = todayPlan.plan.exercises.map((e) => {
-      const row = byId.get(e.exercise_id);
-      return {
-        name: row?.name ?? e.exercise_id,
-        primaryMuscle: row?.primary_muscle ?? "",
-        sets: e.sets,
-        reps: e.reps,
-        demoGifUrl: row?.demo_gif_url ?? undefined,
-      };
-    });
-  }
+  // Fetch today's daily plan from the latest weekly plan
+  const supabase = await createClient();
+  const isoToday = new Date().toISOString().slice(0, 10);
+  const { data: dailyPlanRow } = await supabase
+    .from("daily_plans")
+    .select("plan")
+    .eq("date", isoToday)
+    .maybeSingle<{ plan: DailyPlan }>();
+  const todayPlan: DailyPlan | null = dailyPlanRow?.plan ?? null;
 
   // Compute hero ring progress: today's active calories / 600 (rough default move goal)
   const moveGoal = 600;
@@ -127,40 +113,34 @@ export default async function DashboardPage() {
 
       <section className="mb-8">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Today's plan</h2>
-          {todayPlan && <span className="text-[11px] uppercase tracking-wider text-text-tertiary">~45 min</span>}
+          <h2 className="text-lg font-semibold">Today</h2>
+          <Link href="/plan" className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary">
+            <CalendarDays className="size-3" /> Full week
+          </Link>
         </div>
 
         {todayPlan ? (
           <>
-            <div className="mb-3 rounded-[var(--radius-card)] border border-hairline bg-surface p-4">
-              <p className="text-sm font-semibold">{todayPlan.plan.focus}</p>
-              {todayPlan.plan.notes && (
-                <p className="mt-1 text-xs text-text-secondary">{todayPlan.plan.notes}</p>
-              )}
-            </div>
-            <div className="flex flex-col gap-2">
-              {planExercises.map((ex, i) => (
-                <ExerciseCard key={i} {...ex} />
-              ))}
-            </div>
-            <div className="mt-4">
-              <Link href="/workouts/new">
-                <PrimaryButton accent="workout" className="w-full">
-                  Start workout
-                </PrimaryButton>
-              </Link>
-            </div>
+            <DayCard plan={todayPlan} isToday defaultOpen />
+            {todayPlan.exercises.length > 0 && (
+              <div className="mt-3">
+                <Link href="/workouts/new">
+                  <PrimaryButton accent="workout" className="w-full">
+                    <Dumbbell className="size-4" /> Log this workout
+                  </PrimaryButton>
+                </Link>
+              </div>
+            )}
           </>
         ) : (
           <EmptyState
             icon={Sparkles}
             title="No plan yet"
-            body="Generate a personalized weekly plan from your goal, recent metrics, and training history."
+            body="Generate a personalized 7-day plan from your goal and activity level. Starts today, ends 6 days from now."
             accentHex={ACCENT_HEX.workout}
           >
             <form action="/api/plans/weekly" method="post">
-              <PrimaryButton accent="workout" type="submit">Generate weekly plan</PrimaryButton>
+              <PrimaryButton accent="workout" type="submit">Generate this week's plan</PrimaryButton>
             </form>
           </EmptyState>
         )}
