@@ -1,0 +1,24 @@
+{
+  "name": "Pulse — AI Fitness Companion",
+  "short_name": "Pulse",
+  "description": "Personalized weekly workouts, nutrition, and recovery insights powered by your Apple Health data.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0b0e",
+  "theme_color": "#0b0b0e",
+  "categories": ["health", "fitness", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    { "name": "Today", "url": "/dashboard" },
+    { "name": "Chat", "url": "/chat" }
+  ]
+}
