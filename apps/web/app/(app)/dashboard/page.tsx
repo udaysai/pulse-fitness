@@ -69,9 +69,7 @@ export default async function DashboardPage() {
             body="Export from the iPhone Health app, then upload the .zip here. We aggregate to daily metrics — your raw samples never leave the device storage."
             accentHex={ACCENT_HEX.workout}
           >
-            <Link href="/settings/import">
-              <PrimaryButton accent="workout">Import now</PrimaryButton>
-            </Link>
+            <PrimaryButton accent="workout" href="/settings/import">Import now</PrimaryButton>
           </EmptyState>
         </section>
       ) : (
@@ -131,11 +129,9 @@ export default async function DashboardPage() {
             <DayCard plan={todayPlan} isToday defaultOpen />
             {todayPlan.exercises.length > 0 && (
               <div className="mt-3">
-                <Link href="/workouts/new">
-                  <PrimaryButton accent="workout" className="w-full">
-                    <Dumbbell className="size-4" /> Log this workout
-                  </PrimaryButton>
-                </Link>
+                <PrimaryButton accent="workout" href="/workouts/new" className="w-full">
+                  <Dumbbell className="size-4" /> Log this workout
+                </PrimaryButton>
               </div>
             )}
           </>

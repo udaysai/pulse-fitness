@@ -36,9 +36,7 @@ export default function SettingsPage() {
         <section>
           <SectionHeader>Data</SectionHeader>
           <div className="rounded-[var(--radius-card)] border border-hairline bg-surface divide-y divide-hairline">
-            <Link href="/settings/import" className="block">
-              <ActionRow icon={Upload} label="Import Apple Health" hint="Upload export.zip" />
-            </Link>
+            <ActionRow icon={Upload} label="Import Apple Health" hint="Upload export.zip" href="/settings/import" />
             <ActionRow icon={Database} label="Export my data" hint="GDPR — JSON download (coming soon)" />
           </div>
         </section>
@@ -111,19 +109,36 @@ function ActionRow({
   label,
   hint,
   danger,
+  href,
+  onClick,
 }: {
   icon: typeof Upload;
   label: string;
   hint?: string;
   danger?: boolean;
+  href?: string;
+  onClick?: () => void;
 }) {
-  return (
-    <button className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-raised">
+  const content = (
+    <>
       <Icon className="size-4 text-text-secondary" />
       <div className="flex flex-1 flex-col">
         <span className={`text-sm ${danger ? "text-danger" : ""}`}>{label}</span>
         {hint && <span className="text-[11px] text-text-tertiary">{hint}</span>}
       </div>
+    </>
+  );
+  const className = "flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-raised";
+  if (href) {
+    return (
+      <Link href={href} className={className}>
+        {content}
+      </Link>
+    );
+  }
+  return (
+    <button className={className} onClick={onClick} type="button">
+      {content}
     </button>
   );
 }

@@ -1,46 +1,70 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { ACCENT_HEX, type DomainAccent } from "@/lib/design/accents";
 import { cn } from "@/lib/utils";
 
-type Props = {
+type CommonProps = {
   children: React.ReactNode;
   accent?: DomainAccent;
-  onClick?: () => void;
-  type?: "button" | "submit";
   disabled?: boolean;
   className?: string;
   variant?: "filled" | "outline";
 };
 
-export function PrimaryButton({
-  children,
-  accent = "workout",
-  onClick,
-  type = "button",
-  disabled,
-  className,
-  variant = "filled",
-}: Props) {
+type ButtonProps = CommonProps & {
+  href?: undefined;
+  onClick?: () => void;
+  type?: "button" | "submit";
+};
+
+type LinkProps = CommonProps & {
+  href: string;
+  onClick?: never;
+  type?: never;
+};
+
+type Props = ButtonProps | LinkProps;
+
+const TAP = { scale: 0.97 };
+const SPRING = { type: "spring", stiffness: 600, damping: 30 } as const;
+
+export function PrimaryButton(props: Props) {
+  const { children, accent = "workout", disabled, className, variant = "filled" } = props;
   const accentHex = ACCENT_HEX[accent];
+
+  const classes = cn(
+    "inline-flex items-center justify-center gap-2 rounded-[var(--radius-card)] px-5 py-3 text-sm font-semibold",
+    "transition-colors disabled:opacity-40 disabled:cursor-not-allowed select-none",
+    variant === "filled"
+      ? "text-white"
+      : "border border-hairline text-text-primary bg-transparent hover:bg-surface",
+    disabled && "pointer-events-none",
+    className,
+  );
+
+  const style = variant === "filled" ? { backgroundColor: accentHex } : undefined;
+
+  if ("href" in props && props.href) {
+    return (
+      <motion.div whileTap={TAP} transition={SPRING} className="inline-flex">
+        <Link href={props.href} className={classes} style={style} aria-disabled={disabled}>
+          {children}
+        </Link>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.button
-      type={type}
-      onClick={onClick}
+      type={props.type ?? "button"}
+      onClick={props.onClick}
       disabled={disabled}
-      whileTap={{ scale: 0.97 }}
-      transition={{ type: "spring", stiffness: 600, damping: 30 }}
-      className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-[var(--radius-card)] px-5 py-3 text-sm font-semibold",
-        "transition-colors disabled:opacity-40 disabled:cursor-not-allowed",
-        variant === "filled"
-          ? "text-white"
-          : "border border-hairline text-text-primary bg-transparent hover:bg-surface",
-        className
-      )}
-      style={variant === "filled" ? { backgroundColor: accentHex } : undefined}
+      whileTap={TAP}
+      transition={SPRING}
+      className={classes}
+      style={style}
     >
       {children}
     </motion.button>
