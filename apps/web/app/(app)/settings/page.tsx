@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Upload, LogOut, Trash2, ShieldCheck, Database } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ACCENT_HEX } from "@/lib/design/accents";
@@ -35,8 +36,10 @@ export default function SettingsPage() {
         <section>
           <SectionHeader>Data</SectionHeader>
           <div className="rounded-[var(--radius-card)] border border-hairline bg-surface divide-y divide-hairline">
-            <ActionRow icon={Upload} label="Import Apple Health" hint="Upload export.zip (Week 2)" />
-            <ActionRow icon={Database} label="Export my data" hint="GDPR — JSON download" />
+            <Link href="/settings/import" className="block">
+              <ActionRow icon={Upload} label="Import Apple Health" hint="Upload export.zip" />
+            </Link>
+            <ActionRow icon={Database} label="Export my data" hint="GDPR — JSON download (coming soon)" />
           </div>
         </section>
 
