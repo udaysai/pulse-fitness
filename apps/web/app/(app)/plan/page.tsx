@@ -32,12 +32,23 @@ export default async function PlanPage() {
   if (!isProfileComplete(profile)) redirect("/onboarding");
 
   const supabase = await createClient();
-  const { data: latest } = await supabase
+  const { data: latestRaw } = await supabase
     .from("weekly_plans")
     .select("id, week_start_date, generated_at, plan")
     .order("generated_at", { ascending: false })
     .limit(1)
-    .maybeSingle<WeeklyPlanRow>();
+    .maybeSingle();
+
+  // Detect old-shape plans and ignore them — old plans lacked summary/days_per_week_active.
+  type Loose = { id: string; week_start_date: string; generated_at: string; plan: { summary?: string; days?: unknown[] } };
+  const looseLatest = latestRaw as Loose | null;
+  const latest: WeeklyPlanRow | null =
+    looseLatest &&
+    looseLatest.plan &&
+    typeof looseLatest.plan.summary === "string" &&
+    Array.isArray(looseLatest.plan.days)
+      ? (looseLatest as WeeklyPlanRow)
+      : null;
 
   const today = new Date().toISOString().slice(0, 10);
 

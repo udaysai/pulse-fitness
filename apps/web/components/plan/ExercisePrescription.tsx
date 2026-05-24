@@ -18,8 +18,16 @@ export type PrescribedExercise = {
 };
 
 export function ExercisePrescription({ exercise: e, index }: { exercise: PrescribedExercise; index: number }) {
-  const restLabel =
-    e.rest_seconds >= 60 ? `${Math.round(e.rest_seconds / 60)} min rest` : `${e.rest_seconds}s rest`;
+  // Defensive defaults — handle plans generated before the prescriptive update
+  const formCues = e.form_cues ?? [];
+  const variants = e.variants ?? [];
+  const why = e.why ?? "Builds capacity in the targeted muscle group.";
+  const weightGuidance = e.weight_guidance ?? "Pick a weight where the last 2 reps are hard but doable.";
+  const restSec = e.rest_seconds ?? 90;
+  const restLabel = restSec >= 60 ? `${Math.round(restSec / 60)} min rest` : `${restSec}s rest`;
+  const targetRPE = e.target_rpe ?? 8;
+  const setsCount = e.sets ?? 3;
+  const repsLabel = e.reps ?? "8-12";
 
   return (
     <details className="group rounded-[var(--radius-card)] border border-hairline bg-surface overflow-hidden">
@@ -41,8 +49,8 @@ export function ExercisePrescription({ exercise: e, index }: { exercise: Prescri
             {e.primary_muscle}
           </p>
           <p className="metric mt-1 text-xs text-text-secondary">
-            {e.sets} × {e.reps} · {restLabel} ·{" "}
-            <span title={`Rate of Perceived Exertion: ${e.target_rpe}/10`}>{e.target_rpe}/10 effort</span>
+            {setsCount} × {repsLabel} · {restLabel} ·{" "}
+            <span title={`Rate of Perceived Exertion: ${targetRPE}/10`}>{targetRPE}/10 effort</span>
           </p>
         </div>
         <span className="text-[10px] uppercase tracking-wider text-text-tertiary group-open:hidden">Details</span>
@@ -50,27 +58,29 @@ export function ExercisePrescription({ exercise: e, index }: { exercise: Prescri
       </summary>
 
       <div className="border-t border-hairline px-3 pb-3 pt-3 space-y-3">
-        <Section title="Why" body={e.why} accentHex={ACCENT_HEX.workout} />
+        <Section title="Why" body={why} accentHex={ACCENT_HEX.workout} />
 
-        <Section title="Form" accentHex={ACCENT_HEX.recovery}>
-          <ul className="space-y-1">
-            {e.form_cues.map((cue, i) => (
-              <li key={i} className="flex gap-2 text-xs text-text-primary">
-                <span className="text-text-tertiary">›</span>
-                <span>{cue}</span>
-              </li>
-            ))}
-          </ul>
-        </Section>
+        {formCues.length > 0 && (
+          <Section title="Form" accentHex={ACCENT_HEX.recovery}>
+            <ul className="space-y-1">
+              {formCues.map((cue, i) => (
+                <li key={i} className="flex gap-2 text-xs text-text-primary">
+                  <span className="text-text-tertiary">›</span>
+                  <span>{cue}</span>
+                </li>
+              ))}
+            </ul>
+          </Section>
+        )}
 
-        <Section title="Weight to start with" body={e.weight_guidance} accentHex={ACCENT_HEX.energy} />
+        <Section title="Weight to start with" body={weightGuidance} accentHex={ACCENT_HEX.energy} />
 
         <Section title="Programming" accentHex={ACCENT_HEX.nutrition}>
           <ul className="space-y-1 text-xs text-text-primary">
             <li className="flex items-center gap-2">
               <Repeat className="size-3 text-text-tertiary" />
               <span>
-                <strong>{e.sets} sets</strong> of <strong>{e.reps} reps</strong>
+                <strong>{setsCount} sets</strong> of <strong>{repsLabel} reps</strong>
               </span>
             </li>
             <li className="flex items-center gap-2">
@@ -82,17 +92,17 @@ export function ExercisePrescription({ exercise: e, index }: { exercise: Prescri
             <li className="flex items-center gap-2">
               <Target className="size-3 text-text-tertiary" />
               <span>
-                Last rep should feel <strong>{e.target_rpe}/10</strong> hard (
+                Last rep should feel <strong>{targetRPE}/10</strong> hard (
                 <Term term="rpe" variant="first" />)
               </span>
             </li>
           </ul>
         </Section>
 
-        {e.variants.length > 0 && (
+        {variants && variants.length > 0 && (
           <Section title="No equipment? Variants" accentHex={ACCENT_HEX.sleep}>
             <p className="text-xs text-text-secondary">
-              {e.variants.map((v) => v.replace(/_/g, " ")).join(" · ")}
+              {variants.map((v) => v.replace(/_/g, " ")).join(" · ")}
             </p>
           </Section>
         )}

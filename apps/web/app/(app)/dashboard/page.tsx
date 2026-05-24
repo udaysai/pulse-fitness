@@ -32,8 +32,15 @@ export default async function DashboardPage() {
     .from("daily_plans")
     .select("plan")
     .eq("date", isoToday)
-    .maybeSingle<{ plan: DailyPlan }>();
-  const todayPlan: DailyPlan | null = dailyPlanRow?.plan ?? null;
+    .maybeSingle<{ plan: unknown }>();
+
+  // Detect old-shape plans (pre-prescriptive update) and treat as "no plan"
+  // so the user is prompted to regenerate. New shape always has `type` and `why_today`.
+  const rawPlan = dailyPlanRow?.plan as Partial<DailyPlan> | null | undefined;
+  const todayPlan: DailyPlan | null =
+    rawPlan && typeof rawPlan.type === "string" && typeof rawPlan.why_today === "string"
+      ? (rawPlan as DailyPlan)
+      : null;
 
   // Compute hero ring progress: today's active calories / 600 (rough default move goal)
   const moveGoal = 600;
