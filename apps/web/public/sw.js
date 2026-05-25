@@ -6,7 +6,7 @@
  */
 // Bump this version any time the app shell changes meaningfully.
 // On activate, all old caches are purged so users don't see stale broken pages.
-const CACHE = "pulse-v2";
+const CACHE = "pulse-v3";
 const SHELL = ["/", "/dashboard", "/chat", "/manifest.json"];
 
 self.addEventListener("install", (event) => {

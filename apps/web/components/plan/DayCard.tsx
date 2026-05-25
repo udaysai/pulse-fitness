@@ -1,4 +1,5 @@
-import { CalendarDays, Clock, Coffee, Dumbbell, Heart, Wind } from "lucide-react";
+import Link from "next/link";
+import { CalendarDays, Clock, Coffee, Dumbbell, Heart, PlayCircle, Wind } from "lucide-react";
 import { ExercisePrescription, type PrescribedExercise } from "./ExercisePrescription";
 import { Term } from "@/components/ui/Term";
 import { ACCENT_HEX } from "@/lib/design/accents";
@@ -97,6 +98,13 @@ export function DayCard({
         {/* Strength block */}
         {plan.exercises.length > 0 && (
           <Block icon={Dumbbell} label="Strength block" accent={accent}>
+            <Link
+              href={`/session/${plan.date}`}
+              className="mb-3 flex items-center justify-center gap-2 rounded-[var(--radius-card)] px-5 py-3 text-sm font-semibold text-white"
+              style={{ backgroundColor: accent }}
+            >
+              <PlayCircle className="size-4" /> Start session
+            </Link>
             <div className="flex flex-col gap-2">
               {plan.exercises.map((ex, i) => (
                 <ExercisePrescription key={ex.exercise_id} exercise={ex} index={i} />

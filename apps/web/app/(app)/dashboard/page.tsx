@@ -129,8 +129,8 @@ export default async function DashboardPage() {
             <DayCard plan={todayPlan} isToday defaultOpen />
             {todayPlan.exercises.length > 0 && (
               <div className="mt-3">
-                <PrimaryButton accent="workout" href="/workouts/new" className="w-full">
-                  <Dumbbell className="size-4" /> Log this workout
+                <PrimaryButton accent="workout" href={`/session/${isoToday}`} className="w-full">
+                  <Dumbbell className="size-4" /> Start session
                 </PrimaryButton>
               </div>
             )}
