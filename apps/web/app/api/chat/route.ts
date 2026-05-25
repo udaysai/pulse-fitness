@@ -4,49 +4,86 @@ import { getGeminiClient, GEMINI_MODELS } from "@/lib/ai/gemini";
 import { CHAT_SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import { checkUserInput, wrapUntrusted } from "@/lib/ai/safety";
 import { isGeminiConfigured } from "@/lib/env";
+import { createClient } from "@/lib/supabase/server";
+import { getOrCreateCurrentThread, getMessagesForThread } from "@/lib/queries/chat";
 
-export const runtime = "nodejs"; // streaming SSE
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const BodySchema = z.object({
-  messages: z
-    .array(
-      z.object({
-        role: z.enum(["user", "assistant"]),
-        content: z.string().min(1).max(4000),
-      }),
-    )
-    .min(1)
-    .max(40),
+const PostSchema = z.object({
+  content: z.string().min(1).max(4000),
 });
 
+/** GET — load the user's chat history (their current thread). */
+export async function GET() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const thread = await getOrCreateCurrentThread(user.id);
+  const messages = await getMessagesForThread(thread.id);
+  return NextResponse.json({
+    thread_id: thread.id,
+    messages: messages.map((m) => ({ role: m.role, content: m.content, id: m.id })),
+  });
+}
+
+/** DELETE — clear the current thread (deletes all its messages). */
+export async function DELETE() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const thread = await getOrCreateCurrentThread(user.id);
+  const { error } = await supabase.from("chat_messages").delete().eq("thread_id", thread.id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
+
+/** POST — send a new message; streams the assistant's reply via SSE. */
 export async function POST(req: Request) {
   if (!isGeminiConfigured()) {
     return NextResponse.json(
-      { error: "Gemini not configured. Set GEMINI_API_KEY in .env.local" },
+      { error: "Gemini not configured. Set GEMINI_API_KEY." },
       { status: 503 },
     );
   }
 
-  let body: z.infer<typeof BodySchema>;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  let body: z.infer<typeof PostSchema>;
   try {
-    body = BodySchema.parse(await req.json());
-  } catch (e) {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    body = PostSchema.parse(await req.json());
+  } catch {
+    return NextResponse.json({ error: "invalid_body" }, { status: 400 });
   }
 
-  // Safety pre-filter on the most recent user message
-  const lastUser = [...body.messages].reverse().find((m) => m.role === "user");
-  if (lastUser) {
-    const safety = checkUserInput(lastUser.content);
-    if (!safety.ok) {
-      // Return a single-chunk SSE stream with the refusal so the UI handles it uniformly.
-      return streamLiteral(safety.reply);
-    }
+  // Ensure thread + persist the user message FIRST so a crash mid-stream doesn't lose it
+  const thread = await getOrCreateCurrentThread(user.id);
+  await supabase.from("chat_messages").insert({
+    thread_id: thread.id,
+    role: "user",
+    content: body.content,
+  });
+
+  // Safety pre-filter
+  const safety = checkUserInput(body.content);
+  if (!safety.ok) {
+    // Persist the refusal so it shows in history on refresh
+    await supabase.from("chat_messages").insert({
+      thread_id: thread.id,
+      role: "assistant",
+      content: safety.reply,
+      model: "safety-filter",
+    });
+    return streamLiteral(safety.reply);
   }
 
-  // Build Gemini contents — wrap user text as untrusted
-  const contents = body.messages.map((m) => ({
+  // Build context: load the last N messages from this thread (gives Gemini conversational memory)
+  const history = await getMessagesForThread(thread.id, 30);
+  const contents = history.map((m) => ({
     role: m.role === "assistant" ? "model" : "user",
     parts: [{ text: m.role === "user" ? wrapUntrusted(m.content) : m.content }],
   }));
@@ -65,10 +102,23 @@ export async function POST(req: Request) {
   const encoder = new TextEncoder();
   const body$ = new ReadableStream({
     async start(controller) {
+      let full = "";
       try {
         for await (const chunk of stream) {
           const text = chunk.text;
-          if (text) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: text })}\n\n`));
+          if (text) {
+            full += text;
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: text })}\n\n`));
+          }
+        }
+        // Persist the assistant message after the stream completes
+        if (full.trim()) {
+          await supabase.from("chat_messages").insert({
+            thread_id: thread.id,
+            role: "assistant",
+            content: full,
+            model: GEMINI_MODELS.chat,
+          });
         }
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
       } catch (e) {
@@ -99,9 +149,6 @@ function streamLiteral(text: string): Response {
     },
   });
   return new Response(stream, {
-    headers: {
-      "Content-Type": "text/event-stream; charset=utf-8",
-      "Cache-Control": "no-cache, no-transform",
-    },
+    headers: { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache, no-transform" },
   });
 }

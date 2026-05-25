@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { ExerciseDemo } from "@/components/training/ExerciseDemo";
 
 type Props = {
   name: string;
@@ -17,14 +18,7 @@ export function ExerciseCard({ name, primaryMuscle, sets, reps, demoGifUrl, clas
         className
       )}
     >
-      <div className="size-16 shrink-0 overflow-hidden rounded-xl bg-surface-raised">
-        {demoGifUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={demoGifUrl} alt={`${name} demo`} className="size-full object-cover" />
-        ) : (
-          <div className="size-full bg-gradient-to-br from-surface-raised to-canvas" />
-        )}
-      </div>
+      <ExerciseDemo src={demoGifUrl ?? null} alt={`${name} form demo`} className="size-16 rounded-xl" />
       <div className="flex flex-1 flex-col justify-center gap-0.5 min-w-0">
         <div className="truncate text-sm font-semibold">{name}</div>
         <div className="text-[11px] uppercase tracking-wider text-text-tertiary">{primaryMuscle}</div>

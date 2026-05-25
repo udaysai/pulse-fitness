@@ -1,5 +1,6 @@
 import { Clock, Repeat, Target } from "lucide-react";
 import { Term } from "@/components/ui/Term";
+import { ExerciseDemo } from "@/components/training/ExerciseDemo";
 import { ACCENT_HEX } from "@/lib/design/accents";
 
 export type PrescribedExercise = {
@@ -35,13 +36,9 @@ export function ExercisePrescription({ exercise: e, index }: { exercise: Prescri
         <span className="metric grid size-7 shrink-0 place-items-center rounded-full bg-canvas text-xs font-semibold text-text-secondary">
           {index + 1}
         </span>
-        <div className="size-14 shrink-0 overflow-hidden rounded-lg bg-canvas">
-          {e.demo_gif_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={e.demo_gif_url} alt={`${e.name} demo`} className="size-full object-cover" loading="lazy" />
-          ) : (
-            <div className="size-full bg-gradient-to-br from-surface-raised to-canvas" />
-          )}
+        {/* Tappable demo (opens fullscreen GIF viewer) */}
+        <div onClick={(ev) => ev.preventDefault()} className="size-14">
+          <ExerciseDemo src={e.demo_gif_url} alt={`${e.name} form demo`} className="size-14 rounded-lg" />
         </div>
         <div className="flex flex-1 flex-col min-w-0">
           <p className="truncate text-sm font-semibold">{e.name.replace(/_/g, " ")}</p>
@@ -53,7 +50,7 @@ export function ExercisePrescription({ exercise: e, index }: { exercise: Prescri
             <span title={`Rate of Perceived Exertion: ${targetRPE}/10`}>{targetRPE}/10 effort</span>
           </p>
         </div>
-        <span className="text-[10px] uppercase tracking-wider text-text-tertiary group-open:hidden">Details</span>
+        <span className="text-[10px] uppercase tracking-wider text-text-tertiary group-open:hidden">Tap GIF · Details</span>
         <span className="text-[10px] uppercase tracking-wider text-text-tertiary hidden group-open:inline">Close</span>
       </summary>
 

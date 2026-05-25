@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Send, Sparkles } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Send, Sparkles, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ChatBubble } from "@/components/ui/ChatBubble";
 import { ACCENT_HEX } from "@/lib/design/accents";
@@ -10,29 +10,39 @@ import { cn } from "@/lib/utils";
 type Message = { role: "user" | "assistant"; content: string };
 
 export default function ChatPage() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content:
-        "Hey — I'm Pulse. Ask me about training, recovery, nutrition, or habits. I'm not a doctor though, so anything diagnostic or prescription-related, see a real clinician.",
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Load chat history on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch("/api/chat");
+        if (r.ok) {
+          const j = await r.json();
+          setMessages(j.messages ?? []);
+        }
+      } catch {}
+      setLoaded(true);
+    })();
+  }, []);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages.length]);
 
   async function send() {
     if (!input.trim() || busy) return;
     const text = input.trim();
     setInput("");
 
-    const nextMsgs: Message[] = [...messages, { role: "user", content: text }];
-    setMessages(nextMsgs);
+    setMessages((m) => [...m, { role: "user", content: text }, { role: "assistant", content: "" }]);
     setBusy(true);
-
-    // Add empty assistant message we'll append into
-    setMessages((m) => [...m, { role: "assistant", content: "" }]);
-
     abortRef.current?.abort();
     abortRef.current = new AbortController();
 
@@ -40,29 +50,23 @@ export default function ChatPage() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: nextMsgs }),
+        body: JSON.stringify({ content: text }),
         signal: abortRef.current.signal,
       });
-
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "Request failed" }));
         appendLast(`⚠️ ${err.error ?? "Request failed"}`);
         return;
       }
-
       const reader = res.body!.getReader();
       const decoder = new TextDecoder();
       let buf = "";
-
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
         buf += decoder.decode(value, { stream: true });
-
-        // SSE: split on double newlines
         const events = buf.split("\n\n");
         buf = events.pop() ?? "";
-
         for (const evt of events) {
           const line = evt.split("\n").find((l) => l.startsWith("data: "));
           if (!line) continue;
@@ -70,9 +74,7 @@ export default function ChatPage() {
             const payload = JSON.parse(line.slice(6));
             if (payload.delta) appendLast(payload.delta);
             if (payload.error) appendLast(`\n⚠️ ${payload.error}`);
-          } catch {
-            // Ignore malformed JSON chunks
-          }
+          } catch {}
         }
       }
     } catch (e) {
@@ -96,12 +98,37 @@ export default function ChatPage() {
     });
   }
 
+  async function clearChat() {
+    if (!confirm("Clear all chat history? This cannot be undone.")) return;
+    await fetch("/api/chat", { method: "DELETE" });
+    setMessages([]);
+  }
+
   return (
     <div className="mx-auto flex h-dvh max-w-md flex-col">
-      <PageHeader title="Chat" subtitle="Your AI fitness companion." accentHex={ACCENT_HEX.workout} />
+      <div className="flex items-start justify-between px-1">
+        <PageHeader title="Chat" subtitle="Coach memory — saved to your account." accentHex={ACCENT_HEX.workout} />
+        {messages.length > 0 && (
+          <button
+            onClick={clearChat}
+            aria-label="Clear chat"
+            className="mt-9 mr-5 inline-flex items-center gap-1 text-[11px] text-text-tertiary hover:text-danger"
+          >
+            <Trash2 className="size-3" /> Clear
+          </button>
+        )}
+      </div>
 
-      <div className="flex-1 overflow-y-auto px-5 pb-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 pb-4">
         <div className="flex flex-col gap-5 pt-4">
+          {!loaded && (
+            <p className="text-center text-xs text-text-tertiary">Loading conversation…</p>
+          )}
+          {loaded && messages.length === 0 && (
+            <ChatBubble role="assistant">
+              {"Hey — I'm Pulse. Ask me about training, recovery, or habits. Everything we say is saved to your account so I remember next time. (I'm not a doctor — diagnostic questions go to a real clinician.)"}
+            </ChatBubble>
+          )}
           {messages.map((m, i) => (
             <ChatBubble key={i} role={m.role}>
               {m.content || (busy && i === messages.length - 1 ? <ThinkingDots /> : null)}
@@ -129,9 +156,7 @@ export default function ChatPage() {
             onClick={send}
             disabled={!input.trim() || busy}
             aria-label="Send"
-            className={cn(
-              "grid size-8 place-items-center rounded-full text-white transition-opacity disabled:opacity-30",
-            )}
+            className={cn("grid size-8 place-items-center rounded-full text-white transition-opacity disabled:opacity-30")}
             style={{ backgroundColor: ACCENT_HEX.workout }}
           >
             <Send className="size-4" />

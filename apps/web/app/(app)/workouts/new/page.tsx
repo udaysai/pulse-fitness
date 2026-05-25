@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { PlateCalculator } from "@/components/training/PlateCalculator";
 import { RestTimer } from "@/components/training/RestTimer";
+import { ExerciseDemo } from "@/components/training/ExerciseDemo";
 import { ACCENT_HEX } from "@/lib/design/accents";
 import { cn } from "@/lib/utils";
 import { estimate1RM, fmtKg, setVolume, topSet } from "@/lib/training";
@@ -426,15 +427,12 @@ function ExerciseBlock({
   return (
     <div className="rounded-[var(--radius-card)] border border-hairline bg-surface p-3">
       <div className="mb-2 flex items-center gap-2">
-        <div className="size-12 shrink-0 overflow-hidden rounded-md bg-canvas">
-          {item.exercise.demo_gif_url && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={item.exercise.demo_gif_url} alt="" className="size-full object-cover" />
-          )}
-        </div>
+        <ExerciseDemo src={item.exercise.demo_gif_url} alt={`${item.exercise.name} form demo`} className="size-12 rounded-md" />
         <div className="flex-1 min-w-0">
           <p className="truncate text-sm font-semibold">{item.exercise.name.replace(/_/g, " ")}</p>
-          <p className="text-[10px] uppercase tracking-wider text-text-tertiary">{item.exercise.primary_muscle}</p>
+          <p className="text-[10px] uppercase tracking-wider text-text-tertiary">
+            {item.exercise.primary_muscle} <span className="text-text-tertiary">· tap GIF for fullscreen form</span>
+          </p>
         </div>
         <button onClick={onRemove} aria-label="Remove">
           <X className="size-4 text-text-tertiary" />
