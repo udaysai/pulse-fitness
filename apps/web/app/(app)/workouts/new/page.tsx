@@ -40,29 +40,109 @@ function NewWorkoutInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const templateId = searchParams.get("template");
+  const editId = searchParams.get("edit");
+  const dateParam = searchParams.get("date"); // ?date=YYYY-MM-DD to log a past day
+  const isEditing = Boolean(editId);
+  const todayISO = new Date().toISOString().slice(0, 10);
 
+  const [workoutDate, setWorkoutDate] = useState(() => {
+    if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) return dateParam;
+    return todayISO;
+  });
+  const [kind, setKind] = useState("");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Exercise[]>([]);
   const [searching, setSearching] = useState(false);
-  const [pickerOpen, setPickerOpen] = useState(true);
+  const [pickerOpen, setPickerOpen] = useState(!isEditing);
   const [plan, setPlan] = useState<PlanItem[]>([]);
   const [rpe, setRpe] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [activeRest, setActiveRest] = useState<{ seconds: number; key: number } | null>(null);
   const [savingTemplate, setSavingTemplate] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [loading, setLoading] = useState(isEditing);
   const startedAtRef = useRef<string>(new Date().toISOString());
 
-  // Load template if ?template=<id>
+  /** When backdating, use noon on the picked day. When today, keep the real start time. */
+  function computeStartedAt(): string {
+    if (workoutDate === todayISO) return startedAtRef.current;
+    const d = new Date(`${workoutDate}T12:00:00`);
+    return d.toISOString();
+  }
+
+  // Load existing workout if ?edit=<id>
   useEffect(() => {
-    if (!templateId) return;
+    if (!editId) return;
     (async () => {
-      const r = await fetch(`/api/templates?id=${templateId}`).catch(() => null);
-      // We don't have a GET endpoint yet; fall back to direct supabase query
-      // For now, leave this as a hook for future enhancement.
-      void r;
+      try {
+        const r = await fetch(`/api/workouts/${editId}`);
+        if (!r.ok) throw new Error("Failed to load workout");
+        const { workout } = await r.json();
+        startedAtRef.current = workout.started_at;
+        setWorkoutDate(workout.started_at.slice(0, 10));
+        setKind(workout.kind ?? "");
+        setRpe(workout.rpe?.toString() ?? "");
+        setNotes(workout.notes ?? "");
+        type WE = {
+          order_idx: number;
+          exercise_id: string;
+          exercises: { id: string; name: string; primary_muscle: string; equipment: string | null; demo_gif_url: string | null } | null;
+          exercise_sets: Array<{ set_idx: number; reps: number | null; weight_kg: number | null; rir: number | null }>;
+        };
+        const sortedEx: WE[] = [...(workout.workout_exercises ?? [])].sort((a: WE, b: WE) => a.order_idx - b.order_idx);
+        setPlan(
+          sortedEx.map((we) => ({
+            exercise: {
+              id: we.exercises?.id ?? we.exercise_id,
+              name: we.exercises?.name ?? we.exercise_id,
+              primary_muscle: we.exercises?.primary_muscle ?? "",
+              equipment: we.exercises?.equipment ?? null,
+              demo_gif_url: we.exercises?.demo_gif_url ?? null,
+            },
+            sets: [...(we.exercise_sets ?? [])]
+              .sort((a, b) => a.set_idx - b.set_idx)
+              .map((s) => ({
+                reps: s.reps?.toString() ?? "",
+                weight_kg: s.weight_kg?.toString() ?? "",
+                rir: s.rir?.toString() ?? "",
+                done: true,
+              })),
+            rest_seconds: 120,
+          })),
+        );
+      } catch (e) {
+        alert(e instanceof Error ? e.message : "Failed to load");
+      } finally {
+        setLoading(false);
+      }
     })();
+  }, [editId]);
+
+  // Load template if ?template=<id> (TODO: GET endpoint)
+  useEffect(() => {
+    void templateId;
   }, [templateId]);
+
+  async function handleDelete() {
+    if (!editId) return;
+    if (!confirm("Delete this workout permanently?")) return;
+    setDeleting(true);
+    try {
+      const r = await fetch(`/api/workouts/${editId}`, { method: "DELETE" });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        alert(j.error ?? "Delete failed");
+        setDeleting(false);
+        return;
+      }
+      router.push("/workouts");
+      router.refresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Delete failed");
+      setDeleting(false);
+    }
+  }
 
   // Search debounced
   useEffect(() => {
@@ -182,9 +262,16 @@ function NewWorkoutInner() {
   async function save(saveAsTemplate?: { name: string }) {
     setSaving(true);
     try {
+      const startedAt = computeStartedAt();
+      // For backdated workouts, set ended_at to 45 min after start
+      const isBackdate = workoutDate !== todayISO;
+      const endedAt = isBackdate
+        ? new Date(new Date(startedAt).getTime() + 45 * 60 * 1000).toISOString()
+        : new Date().toISOString();
       const body = {
-        started_at: startedAtRef.current,
-        ended_at: new Date().toISOString(),
+        kind: kind || undefined,
+        started_at: startedAt,
+        ended_at: endedAt,
         rpe: rpe ? Number(rpe) : undefined,
         notes: notes || undefined,
         exercises: plan
@@ -206,8 +293,10 @@ function NewWorkoutInner() {
         setSaving(false);
         return;
       }
-      const r = await fetch("/api/workouts", {
-        method: "POST",
+      const endpoint = isEditing ? `/api/workouts/${editId}` : "/api/workouts";
+      const method = isEditing ? "PATCH" : "POST";
+      const r = await fetch(endpoint, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
@@ -250,13 +339,45 @@ function NewWorkoutInner() {
     setSavingTemplate(false);
   }
 
+  if (loading) {
+    return <div className="mx-auto max-w-md px-5 pt-8 text-sm text-text-secondary">Loading workout…</div>;
+  }
+
   return (
     <div className="mx-auto max-w-md">
       <PageHeader
-        title="New workout"
+        title={isEditing ? "Edit workout" : "New workout"}
         subtitle={`${plan.length} exercises · ${totals.sets} sets · ${fmtKg(totals.volume)} kg volume`}
         accentHex={ACCENT_HEX.workout}
       />
+
+      {/* Date + workout name */}
+      <div className="mx-5 mt-3 grid grid-cols-[140px_1fr] gap-3">
+        <label className="block">
+          <span className="text-[10px] uppercase tracking-wider text-text-tertiary">Date</span>
+          <input
+            type="date"
+            value={workoutDate}
+            max={todayISO}
+            onChange={(e) => setWorkoutDate(e.target.value)}
+            className="mt-1 w-full rounded-[var(--radius-card)] border border-hairline bg-surface px-3 py-2.5 text-sm outline-none focus:border-workout"
+          />
+        </label>
+        <label className="block">
+          <span className="text-[10px] uppercase tracking-wider text-text-tertiary">Workout name</span>
+          <input
+            value={kind}
+            onChange={(e) => setKind(e.target.value)}
+            placeholder="Push Day, Lower Body…"
+            className="mt-1 w-full rounded-[var(--radius-card)] border border-hairline bg-surface px-3 py-2.5 text-sm outline-none focus:border-workout"
+          />
+        </label>
+      </div>
+      {workoutDate !== todayISO && (
+        <p className="mx-5 mt-2 rounded-md bg-canvas px-3 py-2 text-[11px] text-text-secondary">
+          ⏪ Backdating to <span className="text-text-primary">{prettyBackdate(workoutDate)}</span> — this will appear in history as if logged that day.
+        </p>
+      )}
 
       {totals.best_1rm > 0 && (
         <div className="mx-5 mt-4 grid grid-cols-3 gap-2 rounded-[var(--radius-card)] border border-hairline bg-surface p-3 text-center">
@@ -368,16 +489,28 @@ function NewWorkoutInner() {
 
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <PrimaryButton accent="workout" className="w-full" onClick={() => save()} disabled={plan.length === 0 || saving}>
-            <Save className="size-4" /> {saving ? "Saving…" : "Finish workout"}
+            <Save className="size-4" /> {saving ? "Saving…" : isEditing ? "Save changes" : "Finish workout"}
           </PrimaryButton>
-          <button
-            onClick={handleSaveTemplate}
-            disabled={plan.length === 0 || savingTemplate}
-            className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-card)] border border-hairline bg-surface px-5 py-3 text-sm font-semibold text-text-secondary hover:text-text-primary disabled:opacity-40"
-          >
-            <Bookmark className="size-4" /> Save as routine
-          </button>
+          {!isEditing && (
+            <button
+              onClick={handleSaveTemplate}
+              disabled={plan.length === 0 || savingTemplate}
+              className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-card)] border border-hairline bg-surface px-5 py-3 text-sm font-semibold text-text-secondary hover:text-text-primary disabled:opacity-40"
+            >
+              <Bookmark className="size-4" /> Save as routine
+            </button>
+          )}
         </div>
+
+        {isEditing && (
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-card)] border border-hairline bg-surface px-5 py-3 text-sm font-semibold text-danger hover:bg-canvas disabled:opacity-40"
+          >
+            {deleting ? "Deleting…" : "Delete this workout"}
+          </button>
+        )}
       </div>
 
       {activeRest && (
@@ -539,4 +672,16 @@ function SetNumberInput({ value, onChange, placeholder }: { value: string; onCha
       className="metric w-full rounded-md border border-hairline bg-canvas px-2 py-1.5 text-sm outline-none focus:border-workout"
     />
   );
+}
+
+function prettyBackdate(iso: string): string {
+  const d = new Date(`${iso}T00:00:00`);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diff = Math.floor((today.getTime() - d.getTime()) / 86400000);
+  const weekday = d.toLocaleDateString("en-US", { weekday: "long" });
+  const month = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  if (diff === 1) return `Yesterday (${weekday} · ${month})`;
+  if (diff > 0) return `${diff} days ago (${weekday} · ${month})`;
+  return `${weekday} · ${month}`;
 }

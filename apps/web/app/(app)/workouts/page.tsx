@@ -28,6 +28,12 @@ export default async function WorkoutsPage() {
         <PrimaryButton accent="workout" href="/workouts/new" className="w-full">
           <Plus className="size-4" /> Start workout
         </PrimaryButton>
+        <Link
+          href={`/workouts/new?date=${yesterdayISO()}`}
+          className="-mt-3 inline-flex items-center justify-center gap-1 text-xs text-text-secondary hover:text-text-primary"
+        >
+          or log a past workout (yesterday, etc.)
+        </Link>
 
         {/* Stats */}
         <section>
@@ -122,6 +128,12 @@ function Stat({ label, value, subdued }: { label: string; value: string; subdued
       <p className={`metric mt-0.5 text-sm font-semibold ${subdued ? "text-text-secondary" : ""}`}>{value}</p>
     </div>
   );
+}
+
+function yesterdayISO(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0, 10);
 }
 
 function startOfWeekISO(): string {

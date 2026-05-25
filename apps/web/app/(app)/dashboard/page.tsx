@@ -22,17 +22,15 @@ export default async function DashboardPage() {
   if (!user) redirect("/login");
   if (!isProfileComplete(profile)) redirect("/onboarding");
 
-  const metrics = await getRecentMetrics(14);
-  const today = metrics.find((m) => m.date === new Date().toISOString().slice(0, 10));
-
-  // Fetch today's daily plan from the latest weekly plan
+  // Parallelize independent queries to cut dashboard nav latency
   const supabase = await createClient();
   const isoToday = new Date().toISOString().slice(0, 10);
-  const { data: dailyPlanRow } = await supabase
-    .from("daily_plans")
-    .select("plan")
-    .eq("date", isoToday)
-    .maybeSingle<{ plan: unknown }>();
+  const [metrics, dailyPlanResult] = await Promise.all([
+    getRecentMetrics(14),
+    supabase.from("daily_plans").select("plan").eq("date", isoToday).maybeSingle<{ plan: unknown }>(),
+  ]);
+  const today = metrics.find((m) => m.date === isoToday);
+  const dailyPlanRow = dailyPlanResult.data;
 
   // Detect old-shape plans (pre-prescriptive update) and treat as "no plan"
   // so the user is prompted to regenerate. New shape always has `type` and `why_today`.

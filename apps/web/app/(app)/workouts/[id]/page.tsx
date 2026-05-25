@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Pencil } from "lucide-react";
 import { ACCENT_HEX } from "@/lib/design/accents";
 import { getWorkoutDetail } from "@/lib/queries/workouts";
+import { ExerciseDemo } from "@/components/training/ExerciseDemo";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -18,10 +19,18 @@ export default async function WorkoutDetailPage({ params }: Props) {
   );
 
   return (
-    <div className="mx-auto max-w-md px-5 pt-6">
-      <Link href="/workouts" className="mb-4 inline-flex items-center gap-1 text-xs text-text-secondary">
-        <ArrowLeft className="size-3" /> All workouts
-      </Link>
+    <div className="mx-auto max-w-md px-5 pt-6 pb-24">
+      <div className="mb-4 flex items-center justify-between">
+        <Link href="/workouts" className="inline-flex items-center gap-1 text-xs text-text-secondary">
+          <ArrowLeft className="size-3" /> All workouts
+        </Link>
+        <Link
+          href={`/workouts/new?edit=${w.id}`}
+          className="inline-flex items-center gap-1 rounded-full border border-hairline bg-surface px-3 py-1.5 text-xs text-text-secondary hover:text-text-primary"
+        >
+          <Pencil className="size-3" /> Edit
+        </Link>
+      </div>
 
       <header className="halo mb-6" style={{ ["--halo-color" as string]: ACCENT_HEX.workout }}>
         <p className="text-[11px] uppercase tracking-wider text-text-tertiary">
@@ -30,7 +39,7 @@ export default async function WorkoutDetailPage({ params }: Props) {
         <h1 className="text-2xl font-semibold">{w.kind ?? "Workout"}</h1>
         <p className="mt-1 text-xs text-text-secondary">
           {sortedExercises.length} exercises
-          {w.rpe ? ` · RPE ${w.rpe}` : ""}
+          {w.rpe ? ` · effort ${w.rpe}/10` : ""}
           {w.ended_at
             ? ` · ${Math.round((new Date(w.ended_at).getTime() - new Date(w.started_at).getTime()) / 60000)} min`
             : ""}
@@ -41,14 +50,13 @@ export default async function WorkoutDetailPage({ params }: Props) {
         {sortedExercises.map((we) => (
           <div key={we.id} className="rounded-[var(--radius-card)] border border-hairline bg-surface p-3">
             <div className="mb-2 flex items-center gap-3">
-              <div className="size-10 shrink-0 overflow-hidden rounded-md bg-canvas">
-                {we.exercises?.demo_gif_url && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={we.exercises.demo_gif_url} alt="" className="size-full object-cover" />
-                )}
-              </div>
+              <ExerciseDemo
+                src={we.exercises?.demo_gif_url ?? null}
+                alt={`${we.exercises?.name ?? we.exercise_id} form demo`}
+                className="size-10 rounded-md"
+              />
               <div>
-                <p className="text-sm font-semibold">{we.exercises?.name ?? we.exercise_id}</p>
+                <p className="text-sm font-semibold">{(we.exercises?.name ?? we.exercise_id).replace(/_/g, " ")}</p>
                 <p className="text-[10px] uppercase tracking-wider text-text-tertiary">
                   {we.exercises?.primary_muscle}
                 </p>
