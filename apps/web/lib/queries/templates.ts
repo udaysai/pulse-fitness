@@ -21,12 +21,21 @@ export type WorkoutTemplate = {
 };
 
 export async function getMyTemplates(): Promise<WorkoutTemplate[]> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("workout_templates")
-    .select("*")
-    .order("last_used_at", { ascending: false, nullsFirst: false });
-  return (data ?? []) as WorkoutTemplate[];
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("workout_templates")
+      .select("*")
+      .order("last_used_at", { ascending: false, nullsFirst: false });
+    if (error) {
+      console.error("getMyTemplates", error);
+      return [];
+    }
+    return (data ?? []) as WorkoutTemplate[];
+  } catch (e) {
+    console.error("getMyTemplates exception", e);
+    return [];
+  }
 }
 
 export async function getTemplate(id: string): Promise<WorkoutTemplate | null> {

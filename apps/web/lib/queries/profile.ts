@@ -16,19 +16,24 @@ export type Profile = {
 };
 
 export async function getCurrentUserAndProfile() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { user: null, profile: null };
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { user: null, profile: null };
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single<Profile>();
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .maybeSingle<Profile>();
 
-  return { user, profile };
+    return { user, profile };
+  } catch (e) {
+    console.error("getCurrentUserAndProfile exception", e);
+    return { user: null, profile: null };
+  }
 }
 
 /** A profile is "complete" once the user has picked a goal. */

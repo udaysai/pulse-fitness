@@ -12,36 +12,41 @@ export type WorkoutSummary = {
 };
 
 export async function getRecentWorkouts(limit = 30): Promise<WorkoutSummary[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("workouts")
-    .select(`
-      id, started_at, ended_at, kind, source, rpe,
-      workout_exercises (
-        id,
-        exercise_sets ( id )
-      )
-    `)
-    .order("started_at", { ascending: false })
-    .limit(limit);
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("workouts")
+      .select(`
+        id, started_at, ended_at, kind, source, rpe,
+        workout_exercises (
+          id,
+          exercise_sets ( id )
+        )
+      `)
+      .order("started_at", { ascending: false })
+      .limit(limit);
 
-  if (error) {
-    console.error("getRecentWorkouts", error);
+    if (error) {
+      console.error("getRecentWorkouts", error);
+      return [];
+    }
+    return (data ?? []).map((w) => ({
+      id: w.id,
+      started_at: w.started_at,
+      ended_at: w.ended_at,
+      kind: w.kind,
+      source: w.source,
+      rpe: w.rpe,
+      exercise_count: w.workout_exercises?.length ?? 0,
+      set_count: (w.workout_exercises ?? []).reduce(
+        (sum: number, we: { exercise_sets?: unknown[] }) => sum + (we.exercise_sets?.length ?? 0),
+        0,
+      ),
+    }));
+  } catch (e) {
+    console.error("getRecentWorkouts exception", e);
     return [];
   }
-  return (data ?? []).map((w) => ({
-    id: w.id,
-    started_at: w.started_at,
-    ended_at: w.ended_at,
-    kind: w.kind,
-    source: w.source,
-    rpe: w.rpe,
-    exercise_count: w.workout_exercises?.length ?? 0,
-    set_count: (w.workout_exercises ?? []).reduce(
-      (sum: number, we: { exercise_sets?: unknown[] }) => sum + (we.exercise_sets?.length ?? 0),
-      0,
-    ),
-  }));
 }
 
 export async function getWorkoutDetail(id: string) {

@@ -33,9 +33,16 @@ export async function proxy(request: NextRequest) {
   );
 
   // IMPORTANT: do not run code between createServerClient and supabase.auth.getUser()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // If Supabase is unreachable, fail open (let request through) so the page's
+  // own error boundary can show a useful message instead of a generic 500.
+  let user = null;
+  try {
+    const result = await supabase.auth.getUser();
+    user = result.data.user;
+  } catch (e) {
+    console.error("[proxy] supabase.auth.getUser failed", e);
+    return response;
+  }
 
   const pathname = request.nextUrl.pathname;
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));

@@ -16,42 +16,52 @@ export type ExerciseStats = {
   total_volume_kg: number;
 };
 
-/** Look up the most recent time the user did this exercise. */
+/** Look up the most recent time the user did this exercise. Safe — returns null on any failure. */
 export async function getLastTimeForExercise(exercise_id: string): Promise<ExerciseLastTime | null> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("workout_exercises")
-    .select(`
-      id,
-      workout_id,
-      exercises ( id ),
-      exercise_sets ( reps, weight_kg, rir ),
-      workouts!inner ( id, started_at, user_id )
-    `)
-    .eq("exercise_id", exercise_id)
-    .order("started_at", { foreignTable: "workouts", ascending: false })
-    .limit(1)
-    .maybeSingle();
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("workout_exercises")
+      .select(`
+        id,
+        workout_id,
+        exercises ( id ),
+        exercise_sets ( reps, weight_kg, rir ),
+        workouts!inner ( id, started_at, user_id )
+      `)
+      .eq("exercise_id", exercise_id)
+      .order("started_at", { foreignTable: "workouts", ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-  if (!data) return null;
-  const sets = ((data.exercise_sets as Array<{ reps: number | null; weight_kg: number | null; rir: number | null }>) ?? []).map((s) => ({
-    reps: s.reps,
-    weight_kg: s.weight_kg,
-    rir: s.rir,
-  }));
-  const ts = topSet(sets);
-  // Supabase returns joined rows as arrays even with !inner; pick the first.
-  const workoutsField = data.workouts as { id: string; started_at: string } | Array<{ id: string; started_at: string }>;
-  const workout = Array.isArray(workoutsField) ? workoutsField[0] : workoutsField;
-  if (!workout) return null;
+    if (error) {
+      console.error("getLastTimeForExercise", error);
+      return null;
+    }
+    if (!data) return null;
 
-  return {
-    workout_id: workout.id,
-    date: workout.started_at,
-    sets,
-    top_set: ts ? { reps: ts.reps, weight_kg: ts.weight_kg, estimated_1rm: estimate1RM(ts.weight_kg ?? 0, ts.reps ?? 0) } : null,
-    volume_kg: sets.reduce((s, x) => s + (x.reps ?? 0) * (x.weight_kg ?? 0), 0),
-  };
+    const sets = ((data.exercise_sets as Array<{ reps: number | null; weight_kg: number | null; rir: number | null }>) ?? []).map((s) => ({
+      reps: s.reps,
+      weight_kg: s.weight_kg,
+      rir: s.rir,
+    }));
+    const ts = topSet(sets);
+    // Supabase returns joined rows as arrays even with !inner; pick the first.
+    const workoutsField = data.workouts as { id: string; started_at: string } | Array<{ id: string; started_at: string }>;
+    const workout = Array.isArray(workoutsField) ? workoutsField[0] : workoutsField;
+    if (!workout) return null;
+
+    return {
+      workout_id: workout.id,
+      date: workout.started_at,
+      sets,
+      top_set: ts ? { reps: ts.reps, weight_kg: ts.weight_kg, estimated_1rm: estimate1RM(ts.weight_kg ?? 0, ts.reps ?? 0) } : null,
+      volume_kg: sets.reduce((s, x) => s + (x.reps ?? 0) * (x.weight_kg ?? 0), 0),
+    };
+  } catch (e) {
+    console.error("getLastTimeForExercise exception", e);
+    return null;
+  }
 }
 
 /** All-time stats for one exercise: best set, est 1RM, total volume, count. */
