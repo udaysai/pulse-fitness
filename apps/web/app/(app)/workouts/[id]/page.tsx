@@ -14,9 +14,16 @@ export default async function WorkoutDetailPage({ params }: Props) {
   const w = await getWorkoutDetail(id);
   if (!w) notFound();
 
-  const sortedExercises = [...(w.workout_exercises ?? [])].sort(
-    (a: { order_idx: number }, b: { order_idx: number }) => a.order_idx - b.order_idx,
-  );
+  const sortedExercises = Array.isArray(w.workout_exercises)
+    ? [...w.workout_exercises].sort(
+        (a: { order_idx?: number }, b: { order_idx?: number }) => (a.order_idx ?? 0) - (b.order_idx ?? 0),
+      )
+    : [];
+  const startedAt = w.started_at ? new Date(w.started_at) : new Date();
+  const endedAt = w.ended_at ? new Date(w.ended_at) : null;
+  const durationMin = endedAt && w.started_at
+    ? Math.max(0, Math.round((endedAt.getTime() - startedAt.getTime()) / 60000))
+    : 0;
 
   return (
     <div className="mx-auto max-w-md px-5 pt-6 pb-24">
@@ -34,54 +41,58 @@ export default async function WorkoutDetailPage({ params }: Props) {
 
       <header className="halo mb-6" style={{ ["--halo-color" as string]: ACCENT_HEX.workout }}>
         <p className="text-[11px] uppercase tracking-wider text-text-tertiary">
-          {new Date(w.started_at).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+          {startedAt.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
         </p>
         <h1 className="text-2xl font-semibold">{w.kind ?? "Workout"}</h1>
         <p className="mt-1 text-xs text-text-secondary">
           {sortedExercises.length} exercises
           {w.rpe ? ` · effort ${w.rpe}/10` : ""}
-          {w.ended_at
-            ? ` · ${Math.round((new Date(w.ended_at).getTime() - new Date(w.started_at).getTime()) / 60000)} min`
-            : ""}
+          {durationMin > 0 ? ` · ${durationMin} min` : ""}
         </p>
       </header>
 
       <div className="space-y-3">
-        {sortedExercises.map((we) => (
-          <div key={we.id} className="rounded-[var(--radius-card)] border border-hairline bg-surface p-3">
-            <div className="mb-2 flex items-center gap-3">
-              <ExerciseDemo
-                src={we.exercises?.demo_gif_url ?? null}
-                alt={`${we.exercises?.name ?? we.exercise_id} form demo`}
-                className="size-10 rounded-md"
-              />
-              <div>
-                <p className="text-sm font-semibold">{(we.exercises?.name ?? we.exercise_id).replace(/_/g, " ")}</p>
-                <p className="text-[10px] uppercase tracking-wider text-text-tertiary">
-                  {we.exercises?.primary_muscle}
-                </p>
+        {sortedExercises.map((we, idx) => {
+          // Supabase nested join can return single object or array; pick the first
+          const exFK = we.exercises;
+          const exData = Array.isArray(exFK) ? exFK[0] : exFK;
+          const rawName = exData?.name ?? we.exercise_id ?? "Exercise";
+          const displayName = String(rawName).replace(/_/g, " ");
+          const muscle = exData?.primary_muscle ?? "";
+          const demoUrl = exData?.demo_gif_url ?? null;
+          const sets = Array.isArray(we.exercise_sets)
+            ? [...we.exercise_sets].sort((a: { set_idx?: number }, b: { set_idx?: number }) => (a.set_idx ?? 0) - (b.set_idx ?? 0))
+            : [];
+          return (
+            <div key={we.id ?? idx} className="rounded-[var(--radius-card)] border border-hairline bg-surface p-3">
+              <div className="mb-2 flex items-center gap-3">
+                <ExerciseDemo src={demoUrl} alt={`${displayName} form demo`} className="size-10 rounded-md" />
+                <div>
+                  <p className="text-sm font-semibold">{displayName}</p>
+                  {muscle && (
+                    <p className="text-[10px] uppercase tracking-wider text-text-tertiary">{muscle}</p>
+                  )}
+                </div>
               </div>
-            </div>
-            <div className="space-y-1">
-              <div className="grid grid-cols-[24px_1fr_1fr_1fr] gap-2 px-1 text-[10px] uppercase tracking-wider text-text-tertiary">
-                <span>#</span>
-                <span>Reps</span>
-                <span>Weight</span>
-                <span>RIR</span>
-              </div>
-              {[...(we.exercise_sets ?? [])]
-                .sort((a: { set_idx: number }, b: { set_idx: number }) => a.set_idx - b.set_idx)
-                .map((s) => (
-                  <div key={s.id} className="grid grid-cols-[24px_1fr_1fr_1fr] gap-2 text-sm">
-                    <span className="text-text-tertiary">{s.set_idx + 1}</span>
+              <div className="space-y-1">
+                <div className="grid grid-cols-[24px_1fr_1fr_1fr] gap-2 px-1 text-[10px] uppercase tracking-wider text-text-tertiary">
+                  <span>#</span>
+                  <span>Reps</span>
+                  <span>Weight</span>
+                  <span>RIR</span>
+                </div>
+                {sets.map((s, sIdx) => (
+                  <div key={s.id ?? sIdx} className="grid grid-cols-[24px_1fr_1fr_1fr] gap-2 text-sm">
+                    <span className="text-text-tertiary">{(s.set_idx ?? sIdx) + 1}</span>
                     <span className="metric">{s.reps ?? "—"}</span>
                     <span className="metric">{s.weight_kg ? `${s.weight_kg} kg` : "—"}</span>
                     <span className="metric">{s.rir ?? "—"}</span>
                   </div>
                 ))}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {w.notes && (
