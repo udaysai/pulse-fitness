@@ -81,23 +81,32 @@ export async function POST(req: Request) {
     return streamLiteral(safety.reply);
   }
 
-  // Build context: load the last N messages from this thread (gives Gemini conversational memory)
+  // Build context: load the last N messages from this thread (gives Gemini conversational memory).
+  // Sanitize into a valid Gemini sequence — must start with a user turn and alternate roles,
+  // otherwise the API rejects it (e.g. when a previous turn failed before an assistant reply
+  // was saved, leaving consecutive user turns in history).
   const history = await getMessagesForThread(thread.id, 30);
-  const contents = history.map((m) => ({
-    role: m.role === "assistant" ? "model" : "user",
-    parts: [{ text: m.role === "user" ? wrapUntrusted(m.content) : m.content }],
-  }));
+  const contents = toGeminiContents(history);
 
-  const client = getGeminiClient();
-  const stream = await client.models.generateContentStream({
-    model: GEMINI_MODELS.chat,
-    contents,
-    config: {
-      systemInstruction: CHAT_SYSTEM_PROMPT,
-      temperature: 0.6,
-      maxOutputTokens: 1024,
-    },
-  });
+  // The initial stream call can throw (bad/missing API key, unknown model, quota). If we let it
+  // throw here it becomes an opaque non-JSON 500 that the client shows as "Request failed".
+  let stream: Awaited<ReturnType<ReturnType<typeof getGeminiClient>["models"]["generateContentStream"]>>;
+  try {
+    const client = getGeminiClient();
+    stream = await client.models.generateContentStream({
+      model: GEMINI_MODELS.chat,
+      contents,
+      config: {
+        systemInstruction: CHAT_SYSTEM_PROMPT,
+        temperature: 0.6,
+        maxOutputTokens: 1024,
+      },
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "AI request failed";
+    console.error("[chat] generateContentStream failed", e);
+    return NextResponse.json({ error: msg }, { status: 502 });
+  }
 
   const encoder = new TextEncoder();
   const body$ = new ReadableStream({
@@ -111,12 +120,23 @@ export async function POST(req: Request) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: text })}\n\n`));
           }
         }
-        // Persist the assistant message after the stream completes
+        // Persist the assistant message after the stream completes.
         if (full.trim()) {
           await supabase.from("chat_messages").insert({
             thread_id: thread.id,
             role: "assistant",
             content: full,
+            model: GEMINI_MODELS.chat,
+          });
+        } else {
+          // Model produced no visible text (e.g. it spent the token budget on internal
+          // reasoning). Send a fallback so the user isn't left with a blank bubble.
+          const fallback = "I didn't catch that — could you rephrase or give me a bit more detail?";
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: fallback })}\n\n`));
+          await supabase.from("chat_messages").insert({
+            thread_id: thread.id,
+            role: "assistant",
+            content: fallback,
             model: GEMINI_MODELS.chat,
           });
         }
@@ -137,6 +157,32 @@ export async function POST(req: Request) {
       Connection: "keep-alive",
     },
   });
+}
+
+type GeminiContent = { role: "user" | "model"; parts: { text: string }[] };
+
+/**
+ * Convert stored chat history into a Gemini-valid `contents` array:
+ * starts with a user turn, with consecutive same-role turns merged.
+ * User text is wrapped as untrusted input (prompt-injection defense).
+ */
+function toGeminiContents(history: { role: string; content: string }[]): GeminiContent[] {
+  const mapped = history.map((m) => ({
+    role: (m.role === "assistant" ? "model" : "user") as "user" | "model",
+    text: m.role === "user" ? wrapUntrusted(m.content) : m.content,
+  }));
+  while (mapped.length && mapped[0].role === "model") mapped.shift();
+
+  const merged: GeminiContent[] = [];
+  for (const m of mapped) {
+    const last = merged[merged.length - 1];
+    if (last && last.role === m.role) {
+      last.parts[0].text += `\n${m.text}`;
+    } else {
+      merged.push({ role: m.role, parts: [{ text: m.text }] });
+    }
+  }
+  return merged;
 }
 
 function streamLiteral(text: string): Response {
