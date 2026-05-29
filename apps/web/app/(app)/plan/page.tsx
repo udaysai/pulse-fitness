@@ -31,28 +31,76 @@ export default async function PlanPage() {
   if (!user) redirect("/login");
   if (!isProfileComplete(profile)) redirect("/onboarding");
 
-  const supabase = await createClient();
-  const { data: latestRaw } = await supabase
-    .from("weekly_plans")
-    .select("id, week_start_date, generated_at, plan")
-    .order("generated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  // Detect old-shape plans and ignore them — old plans lacked summary/days_per_week_active.
-  type Loose = { id: string; week_start_date: string; generated_at: string; plan: { summary?: string; days?: unknown[] } };
-  const looseLatest = latestRaw as Loose | null;
-  const latest: WeeklyPlanRow | null =
-    looseLatest &&
-    looseLatest.plan &&
-    typeof looseLatest.plan.summary === "string" &&
-    Array.isArray(looseLatest.plan.days)
-      ? (looseLatest as WeeklyPlanRow)
-      : null;
-
   const today = new Date().toISOString().slice(0, 10);
 
-  if (!latest) {
+  // Load + normalize everything inside a try so any failure surfaces a real message
+  // inline instead of an opaque, production-stripped "Something broke" crash screen.
+  let latest: WeeklyPlanRow | null = null;
+  let plan: WeeklyPlanRow["plan"] | null = null;
+  let days: DailyPlan[] = [];
+  let totalMinutes = 0;
+  let activeDays = 0;
+  let generatedDate = "";
+  let loadError: string | null = null;
+
+  try {
+    const supabase = await createClient();
+    const { data: latestRaw, error } = await supabase
+      .from("weekly_plans")
+      .select("id, week_start_date, generated_at, plan")
+      .order("generated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+
+    // Detect old-shape plans and ignore them — old plans lacked summary/days_per_week_active.
+    type Loose = { id: string; week_start_date: string; generated_at: string; plan: { summary?: string; days?: unknown[] } };
+    const looseLatest = latestRaw as Loose | null;
+    latest =
+      looseLatest &&
+      looseLatest.plan &&
+      typeof looseLatest.plan.summary === "string" &&
+      Array.isArray(looseLatest.plan.days)
+        ? (looseLatest as WeeklyPlanRow)
+        : null;
+
+    if (latest) {
+      plan = latest.plan;
+      days = Array.isArray(plan.days) ? plan.days : [];
+      totalMinutes = Number.isFinite(plan.total_minutes) ? plan.total_minutes : 0;
+      activeDays = Number.isFinite(plan.days_per_week_active) ? plan.days_per_week_active : 0;
+      try {
+        generatedDate = new Date(latest.generated_at).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      } catch {
+        generatedDate = "";
+      }
+    }
+  } catch (e) {
+    loadError = e instanceof Error ? e.message : String(e);
+  }
+
+  if (loadError) {
+    return (
+      <div className="mx-auto max-w-md">
+        <PageHeader title="Your week" subtitle="Personalized 7-day plan." accentHex={ACCENT_HEX.workout} />
+        <div className="px-5 pt-4">
+          <EmptyState
+            icon={Sparkles}
+            title="Couldn't load your plan"
+            body="Something went wrong reading your saved plan. You can rebuild a fresh one below."
+            accentHex={ACCENT_HEX.workout}
+          >
+            <form action="/api/plans/weekly" method="post">
+              <PrimaryButton accent="workout" type="submit">Regenerate this week&apos;s plan</PrimaryButton>
+            </form>
+            <p className="mt-3 text-[11px] text-text-tertiary break-words">{loadError}</p>
+          </EmptyState>
+        </div>
+      </div>
+    );
+  }
+
+  if (!latest || !plan) {
     return (
       <div className="mx-auto max-w-md">
         <PageHeader title="Your week" subtitle="Personalized 7-day plan." accentHex={ACCENT_HEX.workout} />
@@ -71,12 +119,6 @@ export default async function PlanPage() {
       </div>
     );
   }
-
-  const plan = latest.plan;
-  const days = Array.isArray(plan.days) ? plan.days : [];
-  const totalMinutes = Number.isFinite(plan.total_minutes) ? plan.total_minutes : 0;
-  const activeDays = Number.isFinite(plan.days_per_week_active) ? plan.days_per_week_active : 0;
-  const generatedDate = new Date(latest.generated_at).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
   return (
     <div className="mx-auto max-w-md">
