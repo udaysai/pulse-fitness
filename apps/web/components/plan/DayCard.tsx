@@ -30,6 +30,9 @@ export function DayCard({
   isToday: boolean;
   defaultOpen?: boolean;
 }) {
+  // A corrupt plan may contain a null/non-object day — skip instead of crashing the whole page.
+  if (!plan || typeof plan !== "object") return null;
+
   const type = plan.type ?? "strength";
   const accent = accentForType(type);
   const exercises = Array.isArray(plan.exercises) ? plan.exercises : [];

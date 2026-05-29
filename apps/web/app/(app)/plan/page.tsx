@@ -73,6 +73,9 @@ export default async function PlanPage() {
   }
 
   const plan = latest.plan;
+  const days = Array.isArray(plan.days) ? plan.days : [];
+  const totalMinutes = Number.isFinite(plan.total_minutes) ? plan.total_minutes : 0;
+  const activeDays = Number.isFinite(plan.days_per_week_active) ? plan.days_per_week_active : 0;
   const generatedDate = new Date(latest.generated_at).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
   return (
@@ -82,8 +85,8 @@ export default async function PlanPage() {
       <div className="space-y-4 px-5 pt-4">
         {/* Week stats */}
         <div className="grid grid-cols-3 gap-2">
-          <Stat label="Active days" value={`${plan.days_per_week_active}/7`} />
-          <Stat label="Total time" value={`${Math.round(plan.total_minutes / 60)}h ${plan.total_minutes % 60}m`} />
+          <Stat label="Active days" value={`${activeDays}/7`} />
+          <Stat label="Total time" value={`${Math.round(totalMinutes / 60)}h ${totalMinutes % 60}m`} />
           <Stat label="Goal" value={prettyGoal(plan.goal)} />
         </div>
 
@@ -99,9 +102,11 @@ export default async function PlanPage() {
 
         {/* Day cards */}
         <div className="flex flex-col gap-2 pt-2">
-          {plan.days.map((d) => (
-            <DayCard key={d.date} plan={d} isToday={d.date === today} defaultOpen={d.date === today} />
-          ))}
+          {days
+            .filter((d): d is DailyPlan => Boolean(d) && typeof d === "object")
+            .map((d, i) => (
+              <DayCard key={d.date ?? i} plan={d} isToday={d.date === today} defaultOpen={d.date === today} />
+            ))}
         </div>
 
         {/* Glossary footer */}
