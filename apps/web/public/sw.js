@@ -1,61 +1,31 @@
 /**
- * Pulse — minimal service worker.
- * - App shell cached on install
- * - Network-first for navigation, fall back to cache when offline
- * - Cache-first for static assets
+ * Pulse — safe service worker.
+ *
+ * IMPORTANT: We deliberately do NOT cache JS/CSS build chunks or page HTML.
+ * Doing so caused ChunkLoadError "Something broke" after every deploy: the SW
+ * served a stale app shell that referenced chunk filenames Vercel had already
+ * removed. Vercel's CDN already serves content-hashed assets with long-lived
+ * immutable caching, so a custom asset cache buys nothing and risks stale state.
+ *
+ * This SW now only:
+ *  - purges ALL old caches on activate (heals previously-poisoned clients), and
+ *  - passes every request straight through to the network.
+ * Bump CACHE whenever this file changes so browsers install the new version.
  */
-// Bump this version any time the app shell changes meaningfully.
-// On activate, all old caches are purged so users don't see stale broken pages.
-const CACHE = "pulse-v7";
-const SHELL = ["/", "/dashboard", "/chat", "/manifest.json"];
+const CACHE = "pulse-v8";
 
-self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).catch(() => undefined));
+self.addEventListener("install", () => {
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))),
-    ),
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+      .then(() => self.clients.claim()),
   );
-  self.clients.claim();
 });
 
-self.addEventListener("fetch", (event) => {
-  const { request } = event;
-  if (request.method !== "GET") return;
-
-  const url = new URL(request.url);
-
-  // Never cache the AI API or any /api route
-  if (url.pathname.startsWith("/api/")) return;
-
-  if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(request, copy)).catch(() => undefined);
-          return res;
-        })
-        .catch(() => caches.match(request).then((r) => r ?? caches.match("/dashboard"))),
-    );
-    return;
-  }
-
-  // Cache-first for static assets
-  if (url.origin === location.origin && /\.(js|css|woff2?|png|svg|jpg|webp)$/.test(url.pathname)) {
-    event.respondWith(
-      caches.match(request).then((cached) => {
-        if (cached) return cached;
-        return fetch(request).then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(request, copy)).catch(() => undefined);
-          return res;
-        });
-      }),
-    );
-  }
-});
+// Network passthrough — no caching. Let the browser + Vercel CDN handle it.
+self.addEventListener("fetch", () => {});

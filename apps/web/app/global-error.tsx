@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
+import { recoverFromChunkError } from "@/lib/chunk-recovery";
+
 /**
  * Last-resort error boundary — catches errors in the root layout itself.
  * Must include its own <html> and <body> tags.
@@ -11,6 +14,10 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    recoverFromChunkError(error);
+  }, [error]);
+
   return (
     <html lang="en">
       <body

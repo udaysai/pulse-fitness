@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { RefreshCw, Home } from "lucide-react";
 import Link from "next/link";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
+import { recoverFromChunkError } from "@/lib/chunk-recovery";
 
 /**
  * Error boundary for all (app) routes. Catches any server-component or client
@@ -17,6 +18,7 @@ export default function AppError({
   reset: () => void;
 }) {
   useEffect(() => {
+    if (recoverFromChunkError(error)) return;
     console.error("[Pulse error]", error);
   }, [error]);
 
