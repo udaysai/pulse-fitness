@@ -69,8 +69,8 @@ export default function ImportPage() {
             <Watch className="size-3" /> Why manual?
           </p>
           <p className="text-xs text-text-secondary leading-relaxed">
-            Apple doesn't let websites read Health data directly — only native iOS apps can,
-            and only with their $99/year Developer fee. The good news: Apple's built-in export
+            Apple doesn&apos;t let websites read Health data directly — only native iOS apps can,
+            and only with their $99/year Developer fee. The good news: Apple&apos;s built-in export
             captures everything your watch tracked, and your data stays on your device until
             you choose to upload daily aggregates here. <strong className="text-text-primary">Raw samples never leave your phone.</strong>
           </p>
@@ -84,13 +84,13 @@ export default function ImportPage() {
               The white app with a red heart icon — already installed by default.
             </Step>
             <Step n={2} icon={Smartphone} title="Tap your profile photo (top-right)">
-              Or your initials if you don't have a photo.
+              Or your initials if you don&apos;t have a photo.
             </Step>
             <Step n={3} icon={Share} title='Scroll down and tap "Export All Health Data"'>
               Confirm in the dialog. Takes 15–60 seconds depending on how much history you have.
             </Step>
             <Step n={4} icon={Share} title="Share to yourself">
-              AirDrop to your Mac (fastest), email to yourself, or save to Files. You'll get a file called <code className="rounded bg-canvas px-1">export.zip</code>.
+              AirDrop to your Mac (fastest), email to yourself, or save to Files. You&apos;ll get a file called <code className="rounded bg-canvas px-1">export.zip</code>.
             </Step>
             <Step n={5} icon={FileArchive} title="Upload it below">
               Drag onto the box, or tap to pick. The parsing happens entirely in your browser.

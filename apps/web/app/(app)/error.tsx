@@ -27,7 +27,7 @@ export default function AppError({
       </div>
       <h1 className="mb-1 text-xl font-semibold">Something broke</h1>
       <p className="mb-4 text-sm text-text-secondary">
-        Try again. If it keeps happening, share this error and I'll fix it.
+        Try again. If it keeps happening, share this error and I&apos;ll fix it.
       </p>
 
       <div className="mb-5 w-full rounded-[var(--radius-card)] border border-hairline bg-surface p-3 text-left">

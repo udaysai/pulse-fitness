@@ -10,7 +10,7 @@ import { RestTimer } from "@/components/training/RestTimer";
 import { ExerciseDemo } from "@/components/training/ExerciseDemo";
 import { ACCENT_HEX } from "@/lib/design/accents";
 import { cn } from "@/lib/utils";
-import { estimate1RM, fmtKg, setVolume, topSet } from "@/lib/training";
+import { estimate1RM, fmtKg, topSet } from "@/lib/training";
 
 type Exercise = {
   id: string;
@@ -63,6 +63,7 @@ function NewWorkoutInner() {
   const [deleting, setDeleting] = useState(false);
   const [loading, setLoading] = useState(isEditing);
   const startedAtRef = useRef<string>(new Date().toISOString());
+  const restKey = useRef(0);
 
   /** When backdating, use noon on the picked day. When today, keep the real start time. */
   function computeStartedAt(): string {
@@ -234,7 +235,8 @@ function NewWorkoutInner() {
 
   function markSetDone(exIdx: number, sIdx: number) {
     updateSet(exIdx, sIdx, { done: true });
-    setActiveRest({ seconds: plan[exIdx].rest_seconds, key: Date.now() });
+    restKey.current += 1;
+    setActiveRest({ seconds: plan[exIdx].rest_seconds, key: restKey.current });
     try { navigator.vibrate?.(30); } catch {}
   }
 
@@ -444,7 +446,6 @@ function NewWorkoutInner() {
           <ExerciseBlock
             key={item.exercise.id}
             item={item}
-            exIdx={exIdx}
             onAddSet={() => addSet(exIdx)}
             onRemoveSet={(sIdx) => removeSet(exIdx, sIdx)}
             onUpdateSet={(sIdx, patch) => updateSet(exIdx, sIdx, patch)}
@@ -536,7 +537,6 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 function ExerciseBlock({
   item,
-  exIdx,
   onAddSet,
   onRemoveSet,
   onUpdateSet,
@@ -545,7 +545,6 @@ function ExerciseBlock({
   onRestChange,
 }: {
   item: PlanItem;
-  exIdx: number;
   onAddSet: () => void;
   onRemoveSet: (sIdx: number) => void;
   onUpdateSet: (sIdx: number, patch: Partial<SetInput>) => void;
@@ -553,9 +552,10 @@ function ExerciseBlock({
   onRemove: () => void;
   onRestChange: (s: number) => void;
 }) {
+  const [now] = useState(() => Date.now());
   const lastTime = item.lastTime;
   const lastDate = lastTime?.date ? new Date(lastTime.date) : null;
-  const daysAgo = lastDate ? Math.floor((Date.now() - lastDate.getTime()) / 86400000) : null;
+  const daysAgo = lastDate ? Math.floor((now - lastDate.getTime()) / 86400000) : null;
 
   return (
     <div className="rounded-[var(--radius-card)] border border-hairline bg-surface p-3">

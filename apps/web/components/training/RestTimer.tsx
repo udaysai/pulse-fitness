@@ -15,7 +15,6 @@ type Props = {
 export function RestTimer({ initialSeconds, onComplete, onDismiss }: Props) {
   const [seconds, setSeconds] = useState(initialSeconds);
   const [running, setRunning] = useState(true);
-  const total = useRef(initialSeconds);
   const fired = useRef(false);
 
   useEffect(() => {
@@ -33,7 +32,7 @@ export function RestTimer({ initialSeconds, onComplete, onDismiss }: Props) {
     return () => clearTimeout(t);
   }, [seconds, running, onComplete]);
 
-  const pct = total.current > 0 ? Math.max(0, Math.min(seconds / total.current, 1)) : 0;
+  const pct = initialSeconds > 0 ? Math.max(0, Math.min(seconds / initialSeconds, 1)) : 0;
   const past = seconds <= 0;
 
   return (

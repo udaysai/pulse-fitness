@@ -32,7 +32,6 @@ export function DayCard({
 }) {
   const type = plan.type ?? "strength";
   const accent = accentForType(type);
-  const Icon = iconForType(type);
   const exercises = Array.isArray(plan.exercises) ? plan.exercises : [];
   const warmupInstructions = Array.isArray(plan.warmup?.instructions) ? plan.warmup.instructions : [];
   const cooldownInstructions = Array.isArray(plan.cooldown?.instructions) ? plan.cooldown.instructions : [];
@@ -57,7 +56,7 @@ export function DayCard({
           className="grid size-10 shrink-0 place-items-center rounded-xl"
           style={{ backgroundColor: `${accent}1a`, color: accent }}
         >
-          <Icon className="size-5" />
+          <TypeIcon type={type} className="size-5" />
         </div>
         <div className="flex flex-1 flex-col min-w-0">
           <div className="flex items-center gap-2">
@@ -228,18 +227,16 @@ function accentForType(type: string): string {
   }
 }
 
-function iconForType(type: string) {
+function TypeIcon({ type, className }: { type: string; className?: string }) {
   switch (type) {
-    case "strength":
-      return Dumbbell;
     case "cardio_zone2":
     case "cardio_hiit":
-      return Heart;
+      return <Heart className={className} />;
     case "active_recovery":
-      return Wind;
+      return <Wind className={className} />;
     case "rest":
-      return Coffee;
+      return <Coffee className={className} />;
     default:
-      return Dumbbell;
+      return <Dumbbell className={className} />;
   }
 }

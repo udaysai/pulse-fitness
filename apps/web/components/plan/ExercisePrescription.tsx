@@ -31,7 +31,6 @@ export function ExercisePrescription({ exercise, index }: { exercise: Prescribed
   if (!exercise) return null;
 
   const e = exercise;
-  const exerciseId = e.exercise_id ?? `unknown-${index}`;
   const rawName = e.name ?? e.exercise_id ?? "Exercise";
   const displayName = prettyName(rawName);
   const primaryMuscle = e.primary_muscle ?? "";

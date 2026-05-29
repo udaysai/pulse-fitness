@@ -31,11 +31,15 @@ export function ExerciseSwapModal({ open, currentExerciseId, currentMuscle, onCl
   const [results, setResults] = useState<SwapCandidate[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
-    setMuscleFilter(currentMuscle ?? "");
-    setQ("");
-  }, [open, currentMuscle]);
+  // Reset filters each time the modal opens (adjust state during render — no effect needed).
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) {
+      setMuscleFilter(currentMuscle ?? "");
+      setQ("");
+    }
+  }
 
   useEffect(() => {
     if (!open) return;

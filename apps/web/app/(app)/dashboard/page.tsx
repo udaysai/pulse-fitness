@@ -141,7 +141,7 @@ export default async function DashboardPage() {
             accentHex={ACCENT_HEX.workout}
           >
             <form action="/api/plans/weekly" method="post">
-              <PrimaryButton accent="workout" type="submit">Generate this week's plan</PrimaryButton>
+              <PrimaryButton accent="workout" type="submit">Generate this week&apos;s plan</PrimaryButton>
             </form>
           </EmptyState>
         )}

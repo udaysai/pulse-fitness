@@ -55,6 +55,7 @@ type Props = {
 export default function SessionClient({ date, plan, enrichedExercises }: Props) {
   const router = useRouter();
   const startedAtRef = useRef(new Date().toISOString());
+  const restKey = useRef(0);
   const [state, setState] = useState<ExerciseState[]>(() =>
     enrichedExercises.map((e) => initialStateFor(e)),
   );
@@ -126,7 +127,8 @@ export default function SessionClient({ date, plan, enrichedExercises }: Props) 
 
   function markDone(exIdx: number, setIdx: number) {
     updateSet(exIdx, setIdx, { done: true });
-    setActiveRest({ seconds: state[exIdx].rest_seconds, key: Date.now() });
+    restKey.current += 1;
+    setActiveRest({ seconds: state[exIdx].rest_seconds, key: restKey.current });
     try { navigator.vibrate?.(30); } catch {}
   }
 
@@ -418,9 +420,10 @@ function SessionExerciseCard({
   onRemove: () => void;
   onRestChange: (secs: number) => void;
 }) {
+  const [now] = useState(() => Date.now());
   const last = s.exercise.last_time;
   const lastDate = last?.date ? new Date(last.date) : null;
-  const daysAgo = lastDate ? Math.floor((Date.now() - lastDate.getTime()) / 86400000) : null;
+  const daysAgo = lastDate ? Math.floor((now - lastDate.getTime()) / 86400000) : null;
 
   return (
     <article className="space-y-3">
