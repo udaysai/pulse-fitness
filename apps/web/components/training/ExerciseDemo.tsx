@@ -34,7 +34,12 @@ export function ExerciseDemo({ src, alt, className, size = "thumbnail" }: Props)
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={(e) => {
+          // Prevent the surrounding <details>/<summary> from toggling when the GIF is tapped.
+          e.preventDefault();
+          e.stopPropagation();
+          setOpen(true);
+        }}
         aria-label={`Play ${alt} demo fullscreen`}
         className={cn(containerClass, "group", className)}
       >

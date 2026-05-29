@@ -52,7 +52,7 @@ export function ExercisePrescription({ exercise, index }: { exercise: Prescribed
         <span className="metric grid size-7 shrink-0 place-items-center rounded-full bg-canvas text-xs font-semibold text-text-secondary">
           {index + 1}
         </span>
-        <div onClick={(ev) => ev.preventDefault()} className="size-14">
+        <div className="size-14">
           <ExerciseDemo src={demoUrl} alt={`${displayName} form demo`} className="size-14 rounded-lg" />
         </div>
         <div className="flex flex-1 flex-col min-w-0">
