@@ -14,7 +14,7 @@ export function EmptyState({ icon: Icon, title, body, accentHex, className, chil
   return (
     <div
       className={cn(
-        "flex flex-col items-center gap-3 rounded-[var(--radius-card)] border border-hairline bg-surface p-8 text-center",
+        "surface-elevated flex flex-col items-center gap-3 rounded-[var(--radius-card)] border border-hairline bg-surface p-8 text-center",
         className
       )}
       style={{ borderColor: `${accentHex}1f` }}

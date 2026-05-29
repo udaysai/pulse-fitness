@@ -13,8 +13,8 @@ export function PageHeader({ title, subtitle, accentHex, className }: Props) {
       className={cn("halo px-5 pt-8 pb-2", className)}
       style={accentHex ? ({ ["--halo-color" as string]: accentHex } as React.CSSProperties) : undefined}
     >
-      <h1 className="text-2xl font-semibold">{title}</h1>
-      {subtitle && <p className="mt-1 text-sm text-text-secondary">{subtitle}</p>}
+      <h1 className="text-gradient text-[28px] font-bold leading-tight">{title}</h1>
+      {subtitle && <p className="mt-1.5 text-sm text-text-secondary">{subtitle}</p>}
     </header>
   );
 }

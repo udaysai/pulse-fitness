@@ -18,12 +18,17 @@ export function MetricCard({ label, value, unit, accent, trend, className }: Pro
   return (
     <div
       className={cn(
-        "relative flex flex-col gap-2 rounded-[var(--radius-card)] bg-surface p-4",
-        "border border-hairline transition-colors duration-300",
+        "surface-elevated relative flex flex-col gap-2 overflow-hidden rounded-[var(--radius-card)] bg-surface p-4",
+        "border border-hairline transition-transform duration-300 hover:-translate-y-0.5",
         className
       )}
-      style={{ borderColor: `${accentHex}1f` }}
+      style={{ borderColor: `${accentHex}24` }}
     >
+      {/* accent corner glow */}
+      <div
+        className="pointer-events-none absolute -right-6 -top-6 size-16 rounded-full blur-2xl"
+        style={{ backgroundColor: `${accentHex}2e` }}
+      />
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-medium uppercase tracking-wider text-text-tertiary">
           {label}
@@ -31,7 +36,7 @@ export function MetricCard({ label, value, unit, accent, trend, className }: Pro
         {trend !== undefined && <MetricTrendPill value={trend} accent={accent} />}
       </div>
       <div className="flex items-baseline gap-1">
-        <span className="metric text-[22px] font-semibold leading-none">{displayValue}</span>
+        <span className="metric text-[24px] font-semibold leading-none">{displayValue}</span>
         {unit && <span className="text-xs text-text-secondary">{unit}</span>}
       </div>
     </div>

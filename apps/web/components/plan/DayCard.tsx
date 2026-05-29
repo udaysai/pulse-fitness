@@ -51,7 +51,7 @@ export function DayCard({
   return (
     <details
       open={defaultOpen}
-      className="group rounded-[var(--radius-card)] border bg-surface overflow-hidden"
+      className="surface-elevated group rounded-[var(--radius-card)] border bg-surface overflow-hidden"
       style={{ borderColor: isToday ? accent : "var(--color-hairline)" }}
     >
       <summary className="flex cursor-pointer items-center gap-3 p-4 list-none">

@@ -36,7 +36,7 @@ export function PrimaryButton(props: Props) {
 
   const classes = cn(
     "inline-flex items-center justify-center gap-2 rounded-[var(--radius-card)] px-5 py-3 text-sm font-semibold",
-    "transition-colors disabled:opacity-40 disabled:cursor-not-allowed select-none",
+    "transition-[transform,box-shadow,background-color] disabled:opacity-40 disabled:cursor-not-allowed select-none",
     variant === "filled"
       ? "text-white"
       : "border border-hairline text-text-primary bg-transparent hover:bg-surface",
@@ -44,7 +44,13 @@ export function PrimaryButton(props: Props) {
     className,
   );
 
-  const style = variant === "filled" ? { backgroundColor: accentHex } : undefined;
+  const style =
+    variant === "filled"
+      ? {
+          backgroundImage: `linear-gradient(180deg, ${accentHex}, ${accentHex}d9)`,
+          boxShadow: `0 6px 20px -8px ${accentHex}, inset 0 1px 0 0 rgb(255 255 255 / 0.18)`,
+        }
+      : undefined;
 
   if ("href" in props && props.href) {
     return (

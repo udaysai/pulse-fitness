@@ -24,16 +24,23 @@ export function RingProgress({
   const circumference = 2 * Math.PI * radius;
   const clamped = clamp(progress, 0, 1);
   const dashOffset = circumference * (1 - clamped);
+  const gradId = `ring-grad-${accent}`;
 
   return (
     <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
+        <defs>
+          <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor={accentHex} stopOpacity={0.7} />
+            <stop offset="100%" stopColor={accentHex} />
+          </linearGradient>
+        </defs>
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke={`${accentHex}26`}
+          stroke={`${accentHex}1f`}
           strokeWidth={strokeWidth}
         />
         <motion.circle
@@ -41,13 +48,14 @@ export function RingProgress({
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke={accentHex}
+          stroke={`url(#${gradId})`}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}
           initial={{ strokeDashoffset: circumference }}
           animate={{ strokeDashoffset: dashOffset }}
           transition={{ duration: 1.2, ease: [0.32, 0.72, 0, 1] }}
+          style={{ filter: `drop-shadow(0 0 6px ${accentHex}80)` }}
         />
       </svg>
       {children && <div className="absolute inset-0 flex items-center justify-center">{children}</div>}
